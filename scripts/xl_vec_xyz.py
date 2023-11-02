@@ -145,8 +145,11 @@ def create_options(ext_name: str, script: type, AxisOptionClass: type, axis_opti
             define('Target Width', 5, float),
             define('Target Height', 6, float),
             define('Aesthetic Score', 7, float),
+            define('Negative Aesthetic Score', 8, float),
             define2('Original WxH', [3, 4], lambda s: [float(x) for x in s.split('x')]),
             define2('Target WxH', [5, 6], lambda s: [float(x) for x in s.split('x')]),
+            define('Extra Prompt', 9, str),
+            define('Extra Negative Prompt', 10, str),
         ]
         
         for opt in options:

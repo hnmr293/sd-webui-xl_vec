@@ -51,6 +51,10 @@ class SDHook:
     def enabled(self):
         return self._enabled
     
+    @enabled.setter
+    def enabled(self, v: bool):
+        self._enabled = bool(v)
+    
     @property
     def batch_num(self):
         return shared.state.job_no
