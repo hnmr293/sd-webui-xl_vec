@@ -20,6 +20,23 @@ def __set_value(p: StableDiffusionProcessing, script: type, index: int, value):
     
     p.script_args = type(p.script_args)(args)
 
+def __set_values(p: StableDiffusionProcessing, script: type, indices: list[int], values: list):
+    args = list(p.script_args)
+    
+    if isinstance(p, StableDiffusionProcessingTxt2Img):
+        all_scripts = scripts.scripts_txt2img.scripts
+    else:
+        all_scripts = scripts.scripts_img2img.scripts
+    
+    froms = [x.args_from for x in all_scripts if isinstance(x, script)]
+    for idx in froms:
+        assert idx is not None
+        for index, value in zip(indices, values):
+            args[idx + index] = value
+    
+    p.script_args = type(p.script_args)(args)
+
+
 
 def to_bool(v: str):
     if len(v) == 0: return False
@@ -112,6 +129,13 @@ def create_options(ext_name: str, script: type, AxisOptionClass: type, axis_opti
             name = f'[{ext_name}] {param}'
             return opts.create(name, type_fn, fn, choices)
         
+        def define2(param: str, indices: list[int], type_fn: Callable, choices: List[str] = []):
+            def fn(p, x, xs):
+                __set_values(p, script, indices, x)
+            
+            name = f'[{ext_name}] {param}'
+            return opts.create(name, type_fn, fn, choices)
+        
         options = [
             define('Enabled', 0, to_bool, choices=['false', 'true']),
             define('Crop Left', 1, float),
@@ -121,6 +145,8 @@ def create_options(ext_name: str, script: type, AxisOptionClass: type, axis_opti
             define('Target Width', 5, float),
             define('Target Height', 6, float),
             define('Aesthetic Score', 7, float),
+            define2('Original WxH', [3, 4], lambda s: [float(x) for x in s.split('x')]),
+            define2('Target WxH', [5, 6], lambda s: [float(x) for x in s.split('x')]),
         ]
         
         for opt in options:
