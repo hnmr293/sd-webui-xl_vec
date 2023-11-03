@@ -152,6 +152,8 @@ def create_options(ext_name: str, script: type, AxisOptionClass: type, axis_opti
             define('Extra Negative Prompt', 10, str),
             define('Token Index', 11, int),
             define('Negative Token Index', 12, int),
+            define('EOT Multiplier', 13, float),
+            define('Negative EOT Multiplier', 14, float),
         ]
         
         for opt in options:

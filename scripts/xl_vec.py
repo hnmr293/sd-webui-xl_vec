@@ -64,13 +64,15 @@ def hook_output(
         # positive prompt
         prompt = args.extra_prompt
         index = args.token_index
+        multiplier = args.eot_multiplier
     else:
         # negative prompt
         prompt = args.extra_negative_prompt
         index = args.negative_token_index
+        multiplier = args.negative_eot_multiplier
     
     if prompt is None or len(prompt) == 0:
-        if index < 0:
+        if index == -1 and multiplier == 1.0:
             # default
             return
         # use original prompt
@@ -85,8 +87,8 @@ def hook_output(
     finally:
         args.enabled = True
     
-    output['vector'][:, 0:1280] = pooled[:]
-    print(f"vector[:, 0:1280]: {inputs[0]['txt']} -> {[prompt]} @ {at}")
+    output['vector'][:, 0:1280] = pooled[:] * multiplier
+    print(f"vector[:, 0:1280]: {inputs[0]['txt']} -> {[prompt]} @ {at} [M={multiplier:.3f}]")
 
     return output
 
@@ -109,6 +111,8 @@ class Hook(SDHook):
         extra_negative_prompt: str|None,
         token_index: int|float,
         negative_token_index: int|float,
+        eot_multiplier: float,
+        negative_eot_multiplier: float,
     ):
         super().__init__(enabled)
         self.crop_left = float(crop_left)
@@ -123,6 +127,8 @@ class Hook(SDHook):
         self.extra_negative_prompt = extra_negative_prompt
         self.token_index = int(token_index)
         self.negative_token_index = int(negative_token_index)
+        self.eot_multiplier = float(eot_multiplier)
+        self.negative_eot_multiplier = float(negative_eot_multiplier)
     
     def hook_clip(self, p: StableDiffusionProcessing, clip: nn.Module):
         if not hasattr(p.sd_model, 'is_sdxl') or not p.sd_model.is_sdxl:
@@ -166,6 +172,8 @@ class Script(scripts.Script):
             extra_negative_prompt = gr.Textbox(lines=3, label='Extra negative prompt (set empty to be disabled)')
             token_index = gr.Slider(minimum=-77, maximum=76, step=1, value=-1, label='Token index in the prompt for the vector (-1 is first EOT)')
             negative_token_index = gr.Slider(minimum=-77, maximum=76, step=1, value=-1, label='Token index in the negative prompt for the vector (-1 is first EOT)')
+            eot_multiplier = gr.Slider(minimum=-4.0, maximum=8.0, step=0.05, value=1.0, label='Token multiplier')
+            negative_eot_multiplier = gr.Slider(minimum=-4.0, maximum=8.0, step=0.05, value=1.0, label='Negative token multiplier')
         return [
             enabled,
             crop_left,
@@ -180,6 +188,8 @@ class Script(scripts.Script):
             extra_negative_prompt,
             token_index,
             negative_token_index,
+            eot_multiplier,
+            negative_eot_multiplier,
         ]
     
     def process(
@@ -198,6 +208,8 @@ class Script(scripts.Script):
         extra_negative_prompt: str,
         token_index: float,
         negative_token_index: float,
+        eot_multiplier: float,
+        negative_eot_multiplier: float,
     ):
         
         if self.last_hooker is not None:
@@ -221,6 +233,8 @@ class Script(scripts.Script):
             extra_negative_prompt=extra_negative_prompt,
             token_index=token_index,
             negative_token_index=negative_token_index,
+            eot_multiplier=eot_multiplier,
+            negative_eot_multiplier=negative_eot_multiplier,
         )
 
         self.last_hooker.setup(p)
@@ -240,6 +254,8 @@ class Script(scripts.Script):
             f'[{NAME}] Extra Negative Prompt': extra_negative_prompt.__repr__(),
             f'[{NAME}] Token Index': token_index,
             f'[{NAME}] Negative Token Index': negative_token_index,
+            f'[{NAME}] EOT Multiplier': eot_multiplier,
+            f'[{NAME}] Negative EOT Multiplier': negative_eot_multiplier,
         })
 
         if hasattr(p, 'cached_c'):
