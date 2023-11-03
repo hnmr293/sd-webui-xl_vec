@@ -6,13 +6,8 @@ from modules.processing import StableDiffusionProcessing
 from modules import scripts
 
 from scripts.sdhook import SDHook
+from scripts.xl_clip import CLIP_SDXL, get_pooled
 from scripts.xl_vec_xyz import init_xyz
-
-try:
-    from sgm.modules import GeneralConditioner as CLIP_SDXL
-except:
-    print(f"[{NAME}] failed to load `sgm.modules.GeneralConditioner`")
-    raise
 
 
 
@@ -68,24 +63,30 @@ def hook_output(
     if inputs[0]['aesthetic_score'].item() == 6.0:
         # positive prompt
         prompt = args.extra_prompt
+        index = args.token_index
     else:
         # negative prompt
         prompt = args.extra_negative_prompt
+        index = args.negative_token_index
     
     if prompt is None or len(prompt) == 0:
-        return
+        if index < 0:
+            # default
+            return
+        # use original prompt
+        prompt = inputs[0]['txt'][0]
     
     assert isinstance(mod, CLIP_SDXL)
     
     try:
         args.enabled = False
-        new_vector = mod.embedders[1]([prompt])[1] # ((1,77,1280), (1,1280)) -> (1,1280)
-        assert new_vector.shape == (1, 1280), f'new_vector.shape={new_vector.shape}'
+        pooled, at = get_pooled(mod, prompt, index=index) # (1,1280)
+        assert pooled.shape == (1, 1280), f'pooled.shape={pooled.shape}'
     finally:
         args.enabled = True
     
-    output['vector'][:, 0:1280] = new_vector[:]
-    print(f"vector[:, 0:1280]: {inputs[0]['txt']} -> {[prompt]}")
+    output['vector'][:, 0:1280] = pooled[:]
+    print(f"vector[:, 0:1280]: {inputs[0]['txt']} -> {[prompt]} @ {at}")
 
     return output
 
@@ -163,8 +164,8 @@ class Script(scripts.Script):
             negative_aesthetic_score = gr.Slider(minimum=0.0, maximum=10.0, step=0.05, value=2.5, label="Negative Aesthetic Score (0..10)")
             extra_prompt = gr.Textbox(lines=3, label='Extra prompt (set empty to be disabled)')
             extra_negative_prompt = gr.Textbox(lines=3, label='Extra negative prompt (set empty to be disabled)')
-            token_index = gr.Slider(minimum=-1, maximum=76, step=1, value=-1, label='Token index in the prompt for the vector')
-            negative_token_index = gr.Slider(minimum=-1, maximum=76, step=1, value=-1, label='Token index in the negative prompt for the vector')
+            token_index = gr.Slider(minimum=-77, maximum=76, step=1, value=-1, label='Token index in the prompt for the vector (-1 is first EOT)')
+            negative_token_index = gr.Slider(minimum=-77, maximum=76, step=1, value=-1, label='Token index in the negative prompt for the vector (-1 is first EOT)')
         return [
             enabled,
             crop_left,

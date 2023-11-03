@@ -150,6 +150,8 @@ def create_options(ext_name: str, script: type, AxisOptionClass: type, axis_opti
             define2('Target WxH', [5, 6], lambda s: [float(x) for x in s.split('x')]),
             define('Extra Prompt', 9, str),
             define('Extra Negative Prompt', 10, str),
+            define('Token Index', 11, int),
+            define('Negative Token Index', 12, int),
         ]
         
         for opt in options:
