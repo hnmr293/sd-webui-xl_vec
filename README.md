@@ -13,3 +13,25 @@ Input values as you like.
 Overwritten values are dumped into stdout.
 
 ![stdout](images/log.png)
+
+## Examples
+
+```
+Hassaku XL alphaV0.7 / DPM++ 3M SDE / 30 steps / 576x1024
+Prompt: a cute girl sitting in flower garden, clear anime face, insanely frilled white dress, absurdly long brown hair, small silver tiara, long sleeves highneck dress, looking at viewer
+Negative Prompt: maid
+```
+
+See PNGInfo for details.
+
+### Crop Top
+
+![Crop top](images/crop_top.png)
+
+### Original Width/Height
+
+![Original Width/Height](images/original_size.png)
+
+### Token Multiplier
+
+![Token Multiplier](images/mult.png)
