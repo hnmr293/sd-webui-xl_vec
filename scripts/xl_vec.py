@@ -99,6 +99,7 @@ class Hook(SDHook):
     def __init__(
         self,
         enabled: bool,
+        p: StableDiffusionProcessing,
         crop_left: float,
         crop_top: float,
         original_width: float,
@@ -113,8 +114,10 @@ class Hook(SDHook):
         negative_token_index: int|float,
         eot_multiplier: float,
         negative_eot_multiplier: float,
+        with_hr: bool,
     ):
         super().__init__(enabled)
+        self.p = p
         self.crop_left = float(crop_left)
         self.crop_top = float(crop_top)
         self.original_width = float(original_width)
@@ -129,6 +132,7 @@ class Hook(SDHook):
         self.negative_token_index = int(negative_token_index)
         self.eot_multiplier = float(eot_multiplier)
         self.negative_eot_multiplier = float(negative_eot_multiplier)
+        self.with_hr = bool(with_hr)
     
     def hook_clip(self, p: StableDiffusionProcessing, clip: nn.Module):
         if not hasattr(p.sd_model, 'is_sdxl') or not p.sd_model.is_sdxl:
@@ -159,13 +163,15 @@ class Script(scripts.Script):
     
     def ui(self, is_img2img):
         with gr.Accordion(NAME, open=False):
-            enabled = gr.Checkbox(label='Enabled', value=False)
+            with gr.Row():
+                enabled = gr.Checkbox(label='Enabled', value=False)
+                with_hr = gr.Checkbox(label='Also enable on Hires fix', value=False, visible=False)
             crop_left = gr.Slider(minimum=-512, maximum=512, step=1, value=0, label='Crop Left')
             crop_top = gr.Slider(minimum=-512, maximum=512, step=1, value=0, label='Crop Top')
-            original_width = gr.Slider(minimum=0, maximum=4096, step=1, value=0, label='Original Width')
-            original_height = gr.Slider(minimum=0, maximum=4096, step=1, value=0, label='Original Height')
-            target_width = gr.Slider(minimum=0, maximum=4096, step=1, value=0, label='Target Width')
-            target_height = gr.Slider(minimum=0, maximum=4096, step=1, value=0, label='Target Height')
+            original_width = gr.Slider(minimum=-1, maximum=4096, step=1, value=-1, label='Original Width (-1 is original size)')
+            original_height = gr.Slider(minimum=-1, maximum=4096, step=1, value=-1, label='Original Height (-1 is original size)')
+            target_width = gr.Slider(minimum=-1, maximum=4096, step=1, value=-1, label='Target Width (-1 is original size)')
+            target_height = gr.Slider(minimum=-1, maximum=4096, step=1, value=-1, label='Target Height (-1 is original size)')
             aesthetic_score = gr.Slider(minimum=0.0, maximum=10.0, step=0.05, value=6.0, label="Aesthetic Score (0..10)")
             negative_aesthetic_score = gr.Slider(minimum=0.0, maximum=10.0, step=0.05, value=2.5, label="Negative Aesthetic Score (0..10)")
             extra_prompt = gr.Textbox(lines=3, label='Extra prompt (set empty to be disabled)')
@@ -190,6 +196,7 @@ class Script(scripts.Script):
             negative_token_index,
             eot_multiplier,
             negative_eot_multiplier,
+            with_hr,
         ]
     
     def process(
@@ -210,6 +217,7 @@ class Script(scripts.Script):
         negative_token_index: float,
         eot_multiplier: float,
         negative_eot_multiplier: float,
+        with_hr: bool,
     ):
         
         if self.last_hooker is not None:
@@ -219,8 +227,18 @@ class Script(scripts.Script):
         if not enabled:
             return
         
+        if original_width < 0:
+            original_width = p.width
+        if original_height < 0:
+            original_height = p.height
+        if target_width < 0:
+            target_width = p.width
+        if target_height < 0:
+            target_height = p.height
+        
         self.last_hooker = Hook(
             enabled=True,
+            p=p,
             crop_left=crop_left,
             crop_top=crop_top,
             original_width=original_width,
@@ -235,6 +253,7 @@ class Script(scripts.Script):
             negative_token_index=negative_token_index,
             eot_multiplier=eot_multiplier,
             negative_eot_multiplier=negative_eot_multiplier,
+            with_hr=with_hr,
         )
 
         self.last_hooker.setup(p)
@@ -242,6 +261,7 @@ class Script(scripts.Script):
         
         p.extra_generation_params.update({
             f'[{NAME}] Enabled': enabled,
+            #f'[{NAME}] With HR': with_hr,
             f'[{NAME}] Crop Left': crop_left,
             f'[{NAME}] Crop Top': crop_top,
             f'[{NAME}] Original Width': original_width,
